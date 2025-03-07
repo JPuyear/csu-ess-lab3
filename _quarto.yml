@@ -1,5 +1,7 @@
-project:
-  title: "csu-ess-lab3"
+project: 
+title: "Lab 3""
+  subtitle: "Visualizing COVID's Takeover"
+  author: "Joshua Puyear"
   output-dir: docs
   type: website
 

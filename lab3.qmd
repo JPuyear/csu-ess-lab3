@@ -1,8 +1,12 @@
 ---
 title: "Lab 3"
+subtitle: Ecosystem Science and Sustainability 330 Lab
 format: html
 editor: visual
-
 execute: 
   echo: true
 ---
+
+library(tidyverse)
+library(flextable)
+lbrary (zoo)

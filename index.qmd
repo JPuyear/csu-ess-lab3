@@ -1,4 +1,152 @@
 ---
 title: "index"
 format: html
+editor: 
+  markdown: 
+    wrap: 72
 ---
+
+# Q1.
+
+#### Take a moment to reflect on the value of open data:
+
+How does easy access to historical and real-time environmental data
+shape our understanding of climate trends, resource management, and
+public health? What happens when this data disappears or becomes
+inaccessible? The role of independent archiving and collaborative
+stewardship has never been more critical in ensuring scientific progress
+and accountability.
+
+1.  When we can access historical and real-time data, we're better able
+    to draw connections between previous conditions and the present to
+    identify trends over time. We can see how present observations fit
+    with previous data, which is the most important evidence that
+    climate change is happening. When these data are accessible to
+    everyone, we can hold our leaders accountable for the decisions they
+    make, which are supposed to be on behalf of the public. Natural
+    resource management is a very rough science that can be heavily
+    influenced by policies, so access to data over time is crucial for
+    holding agencies accountable in processes like the National
+    Environmental Policy Act, where the public has a chance to influence
+    agency actions, or the actions of any major actor on natural
+    resources, or to identify trends over time that have multiple
+    influences. When the data disappear or become inaccessible, people
+    can get away with lying to support ulterior motives and decision
+    makers can make choices with catastrophic consequences.
+
+Q2.
+
+-   Doing fewer than 150 tests per 100,000 residents daily (over a 7-day
+    average)
+
+-   **More than 100 new cases per 100,000 residents over the past 14
+    days… (focus on this)**
+
+-   25 new cases per 100,000 residents and an 8% test positivity rate
+
+-   10% or greater increase in COVID-19 hospitalized patients over the
+    past 3 days
+
+-   Fewer than 20% of ICU beds available
+
+-   Fewer than 25% ventilators available
+
+ For **More than 100 new cases per 100,000 residents over the past 14
+    days**, report also:
+
+1.  cumulative cases in the 5 worst counties
+2.  total NEW cases in the 5 worst counties
+3.  A list of safe counties
+4.  A text report describing the total new cases,
+5.  total cumulative cases, and number of safe counties.
+
+
+1.  Start by reading in the data from the NY-Times URL with read_csv
+    (make sure to attach the tidyverse)
+```{r, echo = TRUE}
+
+library(dplyr)
+library(tidyverse)
+library(flextable)
+data = read_csv('https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv')
+```
+
+2.  Create an object called my.date and set it as “2022-02-01” - ensure
+    this is a date object:. Create a object called my.state and set it
+    to “Colorado”.
+    
+```{r, echo = TRUE}
+txt <- "2022-02-01"
+class(txt)
+
+my.date <- as.Date(txt)
+class(my.date)
+
+```
+
+```{r, echo = TRUE}
+my.state <- as.character("Colorado")
+class(my.state)
+
+```
+
+3.The URL based data read from Github is considered our “raw data”.
+Remember to always leave “raw-data-raw” and to generate meaningful
+subsets as you go.
+
+Start by making a subset that limits (filter) the data to Colorado and add a new column (mutate) with the daily new cases using diff/lag by county (group_by). Do the same for new deaths as well.
+
+```{r, echo = TRUE}
+co_covid <- data %>% 
+  filter(state == "Colorado") %>% 
+  group_by(county) %>% 
+  mutate(case_lag = lag(cases, n = 1)) %>% 
+  mutate(new_cases = cases-case_lag) %>% 
+  mutate(death_lag = lag(deaths, n = 1)) %>%
+  mutate(new_deaths = deaths - death_lag) %>% 
+  arrange(date) %>% 
+  ungroup()
+
+```
+
+2.  Using your subset, generate (2) tables. The first should show the 5 counties with the most CUMULATIVE cases, 
+and the second should show the 5 counties with the most NEW cases. Remember to use your my.date
+    object as a proxy for today’s date:
+
+```{r, echo = TRUE}
+#five counties with the most cumulative cases
+
+most_cumulative_cases_co <- co_covid %>% 
+   filter(date == my.date) %>% 
+  select(county, cases) %>%
+  slice_max(order_by = cases, n = 5)
+
+library(knitr)
+kable(most_cumulative_cases_co, caption = "Five Colorado counties with the most cumulative COVID cases as of February 1st, 2022")
+
+```
+
+```{r, echo = TRUE}
+#five counties with the most new cases
+
+most_new_cases_co <- co_covid %>% 
+  filter(date == my.date) %>% 
+  select(county, new_cases) %>% 
+  slice_max(order_by = new_cases, n = 5, na_rm = TRUE)
+
+kable(most_new_cases_co, caption = "Five Colorado counties with the most new COVID cases on Febrary 1st, 2022")
+  
+```
+
+Your tables should have clear column names and descriptive captions.
+
+
+
+
+
+
+
+
+
+
+
