@@ -34,7 +34,7 @@ and accountability.
     can get away with lying to support ulterior motives and decision
     makers can make choices with catastrophic consequences.
 
-Q2.
+# Q2.Daily Summary
 
 -   Doing fewer than 150 tests per 100,000 residents daily (over a 7-day
     average)
@@ -60,6 +60,7 @@ Q2.
 4.  A text report describing the total new cases,
 5.  total cumulative cases, and number of safe counties.
 
+### Steps
 
 1.  Start by reading in the data from the NY-Times URL with read_csv
     (make sure to attach the tidyverse)
@@ -68,6 +69,7 @@ Q2.
 library(dplyr)
 library(tidyverse)
 library(flextable)
+library(zoo)
 data = read_csv('https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv')
 ```
 
@@ -109,7 +111,7 @@ co_covid <- data %>%
 
 ```
 
-2.  Using your subset, generate (2) tables. The first should show the 5 counties with the most CUMULATIVE cases, 
+  Q2. Using your subset, generate (2) tables. The first should show the 5 counties with the most CUMULATIVE cases, 
 and the second should show the 5 counties with the most NEW cases. Remember to use your my.date
     object as a proxy for today’s date:
 
@@ -141,12 +143,65 @@ kable(most_new_cases_co, caption = "Five Colorado counties with the most new COV
 Your tables should have clear column names and descriptive captions.
 
 
+# Q3: Normalizing Data
+
+Raw count data can be deceiving given the wide range of populations in Colorado countries. To help us normalize data counts, we need supplemental population data to be added. Population data is offered by the Census and can be found here. Please read in this data.
+
+
+How FIPS codes are structured
+- The number of digits in a FIPS code depends on the level of geography
+- State FIPS codes have two digits
+- County FIPS codes have five digits, with the first two digits representing the state FIPS code
+
+
+###Incorrect:
+
+Convert the STATE numeric into a character forced to 2 digits with a leading 0 (when needed)
+
+```{r, echo = TRUE}
+#I mistakenly thought I had to separate the fip from the covid data, which greatly confused me
+
+
+```
+
+Convert the COUNTY numeric into a character forced to 3 digits with leading 0’s (when needed)
 
 
 
+### Correct Code Sequence working with population data instead of COVID data
+
+```{r, echo = TRUE}
+pop_url <- 'https://www2.census.gov/programs-surveys/popest/datasets/2020-2023/counties/totals/co-est2023-alldata.csv'
+
+pop = read_csv(pop_url)
+
+# In this part, we're adding the correct amount of digits to each component of the fips data, which in this table was separated. We want to merge the state and county column to get a complete county fip, which will be the overlapping we make our join table off of
+
+pop <- pop |>
+  mutate(STATE = as.numeric(STATE), COUNTY = as.numeric(COUNTY))|>
+  mutate(fips = paste0(sprintf("%02d",STATE),sprintf("%03d",    COUNTY)))
+  
+
+```
 
 
+Given the above URL, and guidelines on string concatenation and formatting, read in the population data and (1) create a five digit FIP variable and only keep columns that contain “NAME” or “2021” (remember the tidyselect option found with ?dplyr::select). Additionally, remove all state level rows (e.g. COUNTY FIP == “000”)
 
+```{r, echo = TRUE}
+pop21 <- pop %>% 
+  select(fips, contains("2021"), contains("NAME"))
+
+```
+
+```{r, echo = TRUE}
+names(pop21)
+dim(pop21)
+nrow(pop21)
+str(pop21)
+glimpse(pop21)
+skimr(pop21)
+
+```
 
 
 
