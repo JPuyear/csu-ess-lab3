@@ -154,21 +154,12 @@ How FIPS codes are structured
 - County FIPS codes have five digits, with the first two digits representing the state FIPS code
 
 
-###Incorrect:
+### 1. Convert the STATE numeric into a character forced to 2 digits with a leading 0 (when needed)
 
-Convert the STATE numeric into a character forced to 2 digits with a leading 0 (when needed)
+### 2. Convert the COUNTY numeric into a character forced to 3 digits with leading 0’s (when needed)
 
-```{r, echo = TRUE}
-#I mistakenly thought I had to separate the fip from the covid data, which greatly confused me
+### 3. Create a FIP variable the STATE numeric into a character forced to 2 digits with a leading 0 (when needed)
 
-
-```
-
-Convert the COUNTY numeric into a character forced to 3 digits with leading 0’s (when needed)
-
-
-
-### Correct Code Sequence working with population data instead of COVID data
 
 ```{r, echo = TRUE}
 pop_url <- 'https://www2.census.gov/programs-surveys/popest/datasets/2020-2023/counties/totals/co-est2023-alldata.csv'
@@ -179,29 +170,131 @@ pop = read_csv(pop_url)
 
 pop <- pop |>
   mutate(STATE = as.numeric(STATE), COUNTY = as.numeric(COUNTY))|>
-  mutate(fips = paste0(sprintf("%02d",STATE),sprintf("%03d",    COUNTY)))
+  mutate(fips = paste0(sprintf("%02d",STATE),sprintf("%03d", COUNTY)))
   
 
 ```
 
 
-Given the above URL, and guidelines on string concatenation and formatting, read in the population data and (1) create a five digit FIP variable and only keep columns that contain “NAME” or “2021” (remember the tidyselect option found with ?dplyr::select). Additionally, remove all state level rows (e.g. COUNTY FIP == “000”)
+### 1. Given the above URL, and guidelines on string concatenation and formatting, read in the population data and (1) create a five digit FIP variable and only keep columns that contain “NAME” or “2021” (remember the tidyselect option found with ?dplyr::select). Additionally, remove all state level rows (e.g. COUNTY FIP == “000”)
 
+
+1
 ```{r, echo = TRUE}
-pop21 <- pop %>% 
-  select(fips, contains("2021"), contains("NAME"))
+library(stringr)
+
+pop21 <- pop %>%
+  select(fips, contains("2021"), contains("NAME")) %>%
+filter(!str_ends(fips, "000"))
+
+
 
 ```
 
+### 2. Now, explore the data … what attributes does it have, what are the names of the columns? Do any match the COVID data we have? What are the dimensions… In a few sentences describe the data obtained after modification:
 ```{r, echo = TRUE}
 names(pop21)
 dim(pop21)
 nrow(pop21)
 str(pop21)
 glimpse(pop21)
-skimr(pop21)
+#my computer can't do skimr()
+
+intersect(names(pop21), names(co_covid))
+
+```
+2. There are 3144 rows and 19 columns in pop21. There are demographic data like births, deaths, and migration. As of right now, the only columns that intersect are fips because I created that column in the population dataset. Both datasets have county names, state names. While pop21 has total deaths, co_covid just has COVID deaths.What I'm trying to figure out is how a join will happen if the number of rows for my population and covid data don't match up.
+
+
+### 3 What is the range of populations seen in Colorado counties in 2021:
+```{r, echo = TRUE}
+COpop21 <- pop21 %>% 
+filter(STNAME == "Colorado") %>%  mutate(state = STNAME, county = CTYNAME) %>% 
+  select(-CTYNAME, -STNAME) %>%
+  mutate(county = str_replace(county, " County", ""))
+
+  
+
+range(COpop21$POPESTIMATE2021)
+
+```
+3. In Colorado, county populations range from 741 to 737287.
+
+### 4. Join the population data to the Colorado COVID data and compute the per capita cumulative cases, per capita new cases, and per capita new deaths:
+
+```{r}
+co_covid <- co_covid %>% 
+  arrange(county)
+
+CO_covid_pop <- left_join(co_covid, COpop21, by = NULL)
 
 ```
 
+### 5. Generate (2) new tables. The first should show the 5 counties with the most cumulative cases per capita on 2021-01-01, and the second should show the 5 counties with the most NEW cases per capita on the same date. Your tables should have clear column names and descriptive captions.
+
+#### First Table
+```{r, echo = TRUE}
+
+most_cumulative_percap <- CO_covid_pop %>%
+  mutate(date_char = as.character(date)) %>% 
+  mutate(cumulative_percap = cases / POPESTIMATE2021) %>% 
+select(cumulative_percap, county, date_char, cases) %>% 
+  group_by(date_char) %>%
+  arrange(date_char) %>% 
+  filter(date_char == "2021-01-01")  %>% slice_max(order_by = cumulative_percap, n = 5)
+
+ most_cumulative_percap %>%
+  flextable(col_keys = c("cumulative_percap", "cases", "county")) %>%  # 
+  width(width = 0.75) %>%
+  height(height = 0.25) %>%
+  set_header_labels(
+    cases = "Cumulative Cases",
+    cumulative_percap = "Cases per Capita",
+    county = "County"
+  ) %>%  
+   set_caption("Top 5 Counties by Cumulative COVID Cases per Capita on Jan 1, 2021") %>% 
+  theme_booktabs() 
+
+```
+#### Second Table
+```{r, echo = TRUE}
+most_new_percap <- CO_covid_pop %>%
+  mutate(date_char = as.character(date)) %>% 
+  mutate(new_percap = new_cases / POPESTIMATE2021) %>% 
+select(new_percap, county, date_char, new_cases, cases) %>% 
+  group_by(date_char) %>%
+  arrange(date_char) %>% 
+  filter(date_char == "2021-01-01")  %>% slice_max(order_by = new_percap, n = 5)
+
+ most_new_percap %>%
+  flextable(col_keys = c("new_percap", "new_cases", "county")) %>%
+  width(width = 0.75) %>%
+  height(height = 0.25) %>%
+  set_header_labels(
+    new_percap = "New Cases per Capita",
+    new_cases = "New Cases",
+    county = "County"
+  ) %>%  
+   set_caption("Top 5 Counties by New COVID Cases per Capita on Jan 1, 2021") %>% 
+  theme_booktabs()
+
+```
+
+Q4. Rolling Thresholds
+
+Filter the merged COVID/Population data to only include the last 14 days. Remember this should be a programmatic request and not hard-coded. Then, use the group_by/summarize paradigm to determine the total number of new cases in the last 14 days per 100,000 people. Print a table of the top 5 counties, and, report the number that meet the watch list condition: “More than 100 new cases per 100,000 residents over the past 14 days…”
+
+```{r, echo = TRUE}
+
+data <- data %>% 
+group_by(county, date) %>% 
+arrange(county) %>% 
+ mutate(lag_cases = lag(cases, n = 1))
 
 
+covid_pop <- 
+
+last_14_new <- co_covid_pop
+
+
+```
