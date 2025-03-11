@@ -212,9 +212,7 @@ COpop21 <- pop21 %>%
 filter(STNAME == "Colorado") %>%  mutate(state = STNAME, county = CTYNAME) %>% 
   select(-CTYNAME, -STNAME) %>%
   mutate(county = str_replace(county, " County", ""))
-
   
-
 range(COpop21$POPESTIMATE2021)
 
 ```
@@ -287,14 +285,74 @@ Filter the merged COVID/Population data to only include the last 14 days. Rememb
 ```{r, echo = TRUE}
 
 data <- data %>% 
-group_by(county, date) %>% 
-arrange(county) %>% 
- mutate(lag_cases = lag(cases, n = 1))
+arrange(county, date)
+
+#getting a data column of all states with new cases and new deaths
+case_change_data <- data %>%
+arrange(state, county, date) %>%
+  group_by(county) %>% 
+  mutate(case_lag = lag(cases, n = 1, order_by = county)) %>% 
+  mutate(death_lag = lag(deaths, n = 1, order_by = county)) %>% 
+  mutate(new_cases = cases-case_lag) %>% 
+  mutate(new_deaths = deaths - death_lag) %>% 
+  ungroup()
+
+#making sure I'm working with original population data to get most recent dates
+pop_url <- 'https://www2.census.gov/programs-surveys/popest/datasets/2020-2023/counties/totals/co-est2023-alldata.csv'
+
+pop = read_csv(pop_url)
+
+# In this part, we're adding the correct amount of digits to each component of the fips data, which in this table was separated. We want to merge the state and county column to get a complete county fip, which will be the overlapping we make our join table off of
 
 
-covid_pop <- 
+pop <- pop |>
+  mutate(STATE = as.numeric(STATE), COUNTY = as.numeric(COUNTY))|>
+  mutate(fips = paste0(sprintf("%02d",STATE),sprintf("%03d", COUNTY)))
 
-last_14_new <- co_covid_pop
+
+#changing population, state, and county column data to overlap with covid data for a join
+pop_national <- pop %>% 
+  select(fips, contains("202"), contains("NAME")) %>%
+filter(!str_ends(fips, "000")) %>% 
+mutate(state = STNAME, county = CTYNAME) %>% 
+  select(-CTYNAME, -STNAME) %>%
+  mutate(county = str_replace(county, " County", ""))
+
+#covid-population join
+covid_pop <- left_join(case_change_data, pop_national, by = NULL)
+
+#making sure columns joined correctly with a test dataframe
+pop_scf <- covid_pop %>% 
+  select(state, county, fips)
+
+View(pop_scf)
+
+
+#COVID/Population data to only include the last 14 days.
+
+last_14_new <- covid_pop %>% 
+  filter(date >= (max(date)-14))
+
+#Then, use the group_by/summarize paradigm to determine the total number of new cases in the last 14 days per 100,000 people.
+
+last_14_per_100k <- last_14_new %>% 
+  
+
+# Print a table of the top 5 counties, and, 
+
+ flextable(col_keys = c("new_percap", "new_cases", "county")) %>%
+  width(width = 0.75) %>%
+  height(height = 0.25) %>%
+  set_header_labels(
+    new_percap = "New Cases per Capita",
+    new_cases = "New Cases",
+    county = "County"
+  ) %>%  
+   set_caption("Top 5 Counties by New COVID Cases per Capita on Jan 1, 2021") %>% 
+  theme_booktabs()
+
+#report the number that meet the watch list condition: “More than 100 new cases per 100,000 residents over the past 14 days…”
+
 
 
 ```
