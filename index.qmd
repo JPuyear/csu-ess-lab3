@@ -209,6 +209,8 @@ intersect(names(pop21), names(co_covid))
 ### 3 What is the range of populations seen in Colorado counties in 2021:
 ```{r, echo = TRUE}
 COpop21 <- pop21 %>% 
+
+
 filter(STNAME == "Colorado") %>%  mutate(state = STNAME, county = CTYNAME) %>% 
   select(-CTYNAME, -STNAME) %>%
   mutate(county = str_replace(county, " County", ""))
@@ -224,7 +226,12 @@ range(COpop21$POPESTIMATE2021)
 co_covid <- co_covid %>% 
   arrange(county)
 
-CO_covid_pop <- left_join(co_covid, COpop21, by = NULL)
+CO_covid_pop <- left_join(co_covid, COpop21, by = NULL) %>%
+  group_by(county) %>% 
+  mutate(percap_cumulative = cases/POPESTIMATE2021) %>% 
+  mutate(percap_new_cases = new_cases/POPESTIMATE2021) %>% 
+  mutate(percap_new_deaths = new_deaths/POPESTIMATE2021) %>% 
+ungroup()
 
 ```
 
@@ -235,19 +242,18 @@ CO_covid_pop <- left_join(co_covid, COpop21, by = NULL)
 
 most_cumulative_percap <- CO_covid_pop %>%
   mutate(date_char = as.character(date)) %>% 
-  mutate(cumulative_percap = cases / POPESTIMATE2021) %>% 
-select(cumulative_percap, county, date_char, cases) %>% 
+select(percap_cumulative, county, date_char, cases) %>% 
   group_by(date_char) %>%
   arrange(date_char) %>% 
-  filter(date_char == "2021-01-01")  %>% slice_max(order_by = cumulative_percap, n = 5)
+  filter(date_char == "2021-01-01")  %>% slice_max(order_by = percap_cumulative, n = 5)
 
  most_cumulative_percap %>%
-  flextable(col_keys = c("cumulative_percap", "cases", "county")) %>%  # 
+  flextable(col_keys = c("percap_cumulative", "cases", "county")) %>%  # 
   width(width = 0.75) %>%
   height(height = 0.25) %>%
   set_header_labels(
     cases = "Cumulative Cases",
-    cumulative_percap = "Cases per Capita",
+    percap_cumulative = "Cases per Capita",
     county = "County"
   ) %>%  
    set_caption("Top 5 Counties by Cumulative COVID Cases per Capita on Jan 1, 2021") %>% 
@@ -258,18 +264,18 @@ select(cumulative_percap, county, date_char, cases) %>%
 ```{r, echo = TRUE}
 most_new_percap <- CO_covid_pop %>%
   mutate(date_char = as.character(date)) %>% 
-  mutate(new_percap = new_cases / POPESTIMATE2021) %>% 
-select(new_percap, county, date_char, new_cases, cases) %>% 
+select(percap_new_cases, county, date_char, new_cases, cases) %>% 
   group_by(date_char) %>%
   arrange(date_char) %>% 
-  filter(date_char == "2021-01-01")  %>% slice_max(order_by = new_percap, n = 5)
+  filter(date_char == "2021-01-01")  %>% slice_max(order_by = percap_new_cases, n = 5) %>% 
+ungroup()
 
  most_new_percap %>%
-  flextable(col_keys = c("new_percap", "new_cases", "county")) %>%
+  flextable(col_keys = c("percap_new_cases", "new_cases", "county")) %>%
   width(width = 0.75) %>%
   height(height = 0.25) %>%
   set_header_labels(
-    new_percap = "New Cases per Capita",
+    percap_new_cases = "New Cases per Capita",
     new_cases = "New Cases",
     county = "County"
   ) %>%  
@@ -278,9 +284,10 @@ select(new_percap, county, date_char, new_cases, cases) %>%
 
 ```
 
-Q4. Rolling Thresholds
+#Q4. Rolling Thresholds
+a rolling threshold is a predefined value that changes as time advances
 
-Filter the merged COVID/Population data to only include the last 14 days. Remember this should be a programmatic request and not hard-coded. Then, use the group_by/summarize paradigm to determine the total number of new cases in the last 14 days per 100,000 people. Print a table of the top 5 counties, and, report the number that meet the watch list condition: “More than 100 new cases per 100,000 residents over the past 14 days…”
+Filter the merged COVID/Population data to only include the last 14 days. Remember this should be a programmatic request and not hard-coded. Then, use the group_by/summarize paradigm to determine the total number of new cases in the last 14 days per 100,000 people. Print a table of the top 5 c ounties, and, report the number that meet the watch list condition: “More than 100 new cases per 100,000 residents over the past 14 days…”
 
 ```{r, echo = TRUE}
 
@@ -321,38 +328,54 @@ mutate(state = STNAME, county = CTYNAME) %>%
 #covid-population join
 covid_pop <- left_join(case_change_data, pop_national, by = NULL)
 
-#making sure columns joined correctly with a test dataframe
-pop_scf <- covid_pop %>% 
-  select(state, county, fips)
 
-View(pop_scf)
+#COVID/Population data to only include the last 14 days. Then, use the group_by/summarize paradigm to determine the total number of new cases in the last 14 days per 100,000 people.
+
+last_14_per100k <- covid_pop %>%
+  filter(date >= (max(date)-14)) %>% 
+  group_by(state, county) %>%
+  mutate(new_percap = new_cases / (POPESTIMATE2022/1e6)) %>% 
+  summarize(new_cases_per100k =  sum(new_percap), cumulative_cases = max(cases)) %>% 
+  ungroup()
+```  
 
 
-#COVID/Population data to only include the last 14 days.
+```{r}
 
-last_14_new <- covid_pop %>% 
-  filter(date >= (max(date)-14))
+# Print a table of the top 5 counties, and...
 
-#Then, use the group_by/summarize paradigm to determine the total number of new cases in the last 14 days per 100,000 people.
+top5new_past14_per100k <- last_14_per100k %>%
+  filter(state == "Colorado") %>% 
+  slice_max(new_cases_per100k, n =5) 
 
-last_14_per_100k <- last_14_new %>% 
-  
-
-# Print a table of the top 5 counties, and, 
-
- flextable(col_keys = c("new_percap", "new_cases", "county")) %>%
-  width(width = 0.75) %>%
-  height(height = 0.25) %>%
+flextable(top5new_past14_per100k, col_keys = c("new_cases_per100k", "county")) %>%
+height(height = 0.25) %>%
   set_header_labels(
-    new_percap = "New Cases per Capita",
-    new_cases = "New Cases",
+    new_cases_per100k = "New Cases per 100,000 Inhabitants",
     county = "County"
   ) %>%  
-   set_caption("Top 5 Counties by New COVID Cases per Capita on Jan 1, 2021") %>% 
+   set_caption("Top 5 Counties by Number of New COVID Cases per 100,000 Inhabitants in the Last 14 Days in Colorado") %>% 
   theme_booktabs()
 
-#report the number that meet the watch list condition: “More than 100 new cases per 100,000 residents over the past 14 days…”
+#...report the number that meet the watch list condition: “More than 100 new cases per 100,000 residents over the past 14 days…”
+
+```
 
 
+
+
+```{r, echo = TRUE}
+top5cumulative_past14_per100k <- last_14_per100k %>%
+  filter(state == "Colorado") %>% 
+  slice_max(cumulative_cases_per100k, n =5) %>% 
+flextable(col_keys = c("new_cases_per100k", "county", "total_cases")) %>%
+height(height = 0.25) %>%
+  set_header_labels(
+    new_cases_per100k = "New Cases per 100,000 Inhabitants",
+    total_cases = "Total Cumulative Cases",
+    county = "County"
+  ) %>%  
+   set_caption("Top 5 Counties by Number of New COVID Cases per 100,000 Inhabitants in the Last 14 Days in Colorado") %>% 
+  theme_booktabs()
 
 ```
