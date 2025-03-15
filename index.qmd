@@ -84,6 +84,8 @@ class(txt)
 my.date <- as.Date(txt)
 class(my.date)
 
+
+
 ```
 
 ```{r, echo = TRUE}
@@ -226,7 +228,7 @@ range(COpop21$POPESTIMATE2021)
 co_covid <- co_covid %>% 
   arrange(county)
 
-CO_covid_pop <- left_join(co_covid, COpop21, by = NULL) %>%
+co_covid_pop <- left_join(co_covid, COpop21, by = NULL) %>%
   group_by(county) %>% 
   mutate(percap_cumulative = cases/POPESTIMATE2021) %>% 
   mutate(percap_new_cases = new_cases/POPESTIMATE2021) %>% 
@@ -240,7 +242,7 @@ ungroup()
 #### First Table
 ```{r, echo = TRUE}
 
-most_cumulative_percap <- CO_covid_pop %>%
+most_cumulative_percap <- co_covid_pop %>%
   mutate(date_char = as.character(date)) %>% 
 select(percap_cumulative, county, date_char, cases) %>% 
   group_by(date_char) %>%
@@ -262,7 +264,7 @@ select(percap_cumulative, county, date_char, cases) %>%
 ```
 #### Second Table
 ```{r, echo = TRUE}
-most_new_percap <- CO_covid_pop %>%
+most_new_percap <- co_covid_pop %>%
   mutate(date_char = as.character(date)) %>% 
 select(percap_new_cases, county, date_char, new_cases, cases) %>% 
   group_by(date_char) %>%
@@ -287,7 +289,7 @@ ungroup()
 #Q4. Rolling Thresholds
 a rolling threshold is a predefined value that changes as time advances
 
-Filter the merged COVID/Population data to only include the last 14 days. Remember this should be a programmatic request and not hard-coded. Then, use the group_by/summarize paradigm to determine the total number of new cases in the last 14 days per 100,000 people. Print a table of the top 5 c ounties, and, report the number that meet the watch list condition: “More than 100 new cases per 100,000 residents over the past 14 days…”
+Filter the merged COVID/Population data to only include the last 14 days. Remember this should be a programmatic request and not hard-coded. Then, use the group_by/summarize paradigm to determine the total number of new cases in the last 14 days per 100,000 people. Print a table of the top 5 counties, and, report the number that meet the watch list condition: “More than 100 new cases per 100,000 residents over the past 14 days…”
 
 ```{r, echo = TRUE}
 
@@ -301,20 +303,9 @@ arrange(state, county, date) %>%
   mutate(case_lag = lag(cases, n = 1, order_by = county)) %>% 
   mutate(death_lag = lag(deaths, n = 1, order_by = county)) %>% 
   mutate(new_cases = cases-case_lag) %>% 
-  mutate(new_deaths = deaths - death_lag) %>% 
+  mutate(new_deaths = deaths - death_lag) %>%
   ungroup()
 
-#making sure I'm working with original population data to get most recent dates
-pop_url <- 'https://www2.census.gov/programs-surveys/popest/datasets/2020-2023/counties/totals/co-est2023-alldata.csv'
-
-pop = read_csv(pop_url)
-
-# In this part, we're adding the correct amount of digits to each component of the fips data, which in this table was separated. We want to merge the state and county column to get a complete county fip, which will be the overlapping we make our join table off of
-
-
-pop <- pop |>
-  mutate(STATE = as.numeric(STATE), COUNTY = as.numeric(COUNTY))|>
-  mutate(fips = paste0(sprintf("%02d",STATE),sprintf("%03d", COUNTY)))
 
 
 #changing population, state, and county column data to overlap with covid data for a join
@@ -337,6 +328,7 @@ last_14_per100k <- covid_pop %>%
   mutate(new_percap = new_cases / (POPESTIMATE2022/1e6)) %>% 
   summarize(new_cases_per100k =  sum(new_percap), cumulative_cases = max(cases)) %>% 
   ungroup()
+
 ```  
 
 
@@ -361,21 +353,63 @@ height(height = 0.25) %>%
 
 ```
 
+# Q5: Death Toll
 
+Given we are assuming it is February 1st, 2022. Your leadership has asked you to determine what percentage of deaths in each county were attributed to COVID last year (2021). You eagerly tell them that with the current Census data, you can do this!
 
+From previous questions you should have a data.frame with daily COVID deaths in Colorado and the Census based, 2021 total deaths. For this question, you will find the ratio of total COVID deaths per county (2021) of all recorded deaths. In a plot of your choosing, visualize all counties where COVID deaths account for 20% or more of the annual death toll.
 
 ```{r, echo = TRUE}
-top5cumulative_past14_per100k <- last_14_per100k %>%
-  filter(state == "Colorado") %>% 
-  slice_max(cumulative_cases_per100k, n =5) %>% 
-flextable(col_keys = c("new_cases_per100k", "county", "total_cases")) %>%
-height(height = 0.25) %>%
-  set_header_labels(
-    new_cases_per100k = "New Cases per 100,000 Inhabitants",
-    total_cases = "Total Cumulative Cases",
-    county = "County"
-  ) %>%  
-   set_caption("Top 5 Counties by Number of New COVID Cases per 100,000 Inhabitants in the Last 14 Days in Colorado") %>% 
-  theme_booktabs()
+# Percentage of deaths that were due to COVID in 2021 for each county will require the population data and the covid cases data. We're going to use CO_Covid_pop for this and filter the year to 2021. 
+#Variables:
+#DEATHS2021
+#deaths
+
+#create an object that represents deaths from just the year 2021
+
+
+co_covid_pop <- co_covid_pop %>% 
+  mutate(year = lubridate::year(date))
+           
+
+deaths_2021 <- co_covid_pop %>% 
+  group_by(county) %>%
+  filter(date == "2021-12-31") %>% 
+  mutate(deaths_2021 = deaths) %>% 
+  select(deaths_2021, county)
+
+deaths_2020 <- co_covid_pop %>% 
+  group_by(county) %>% 
+  filter(date == "2020-12-31") %>% 
+  mutate(deaths_2020 = deaths) %>% 
+  select(deaths_2020, county)
+
+cov_death_2021 <- co_covid_pop %>%
+  select(DEATHS2021, county, date) %>%
+  filter(date == "2021-12-31") %>% 
+  group_by(county) %>%
+  right_join(deaths_2020) %>%
+  right_join(deaths_2021) %>%
+  group_by(county) %>% 
+  mutate(deaths_2021_only = deaths_2021-deaths_2020) %>%
+  mutate(cov_death_percent = (deaths_2021_only/DEATHS2021)*100) %>% 
+  select(deaths_2021_only, cov_death_percent) %>%  filter(cov_death_percent >= 20)
+
+```
+
+### Making the graph
+
+```{r, echo = TRUE}
+ggplot(data = cov_death_2021,
+       aes(x = county, y = cov_death_percent)) +
+       geom_bar(stat = "Identity", fill = "steelblue") +
+  coord_flip() +
+  theme_minimal()+
+  labs(
+    x = "County Name",
+    y = "Percent of Deaths Attributed to COVID",
+    title = "CO Counties with Highest Percentage of\nDeaths due to COVID in 2021"
+  ) +
+  theme (plot.title = element_text(size = 11, hjust = .1, lineheight = 1.2, face = "bold"))
 
 ```
