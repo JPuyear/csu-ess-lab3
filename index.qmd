@@ -413,3 +413,86 @@ ggplot(data = cov_death_2021,
   theme (plot.title = element_text(size = 11, hjust = .1, lineheight = 1.2, face = "bold"))
 
 ```
+
+# Q6: Multi-state
+In this question, we are going to look at the story of 4 states and the impact scale can have on data interpretation. The states include: New York, Colorado, Alabama, and Ohio. Your task is to make a faceted bar plot showing the number of daily, new cases at the state level.
+
+1. First, we need to group/summarize our county level data to the state level, filter it to the four states of interest, and calculate the number of daily new cases (diff/lag) and the 7-day rolling mean.
+
+##### Do we also need the population data for this, or is the county level data enough?
+
+```{r, echo = TRUE}
+covid_state <- case_change_data %>%
+  group_by(date, state) %>% 
+  summarize(cases = sum(cases)) %>% #this makes each state have a cumulative case count for each day instead of separating it by county
+  filter(state %in% c("New York", "Colorado", "Alabama", "Ohio")) %>% #new cases grouped together by state
+  group_by(state) %>% #had to group by state again because we just summarized
+  mutate(new_cases = cases - lag(cases)) %>% 
+  mutate(roll = zoo::rollmean(new_cases, k = 7, align = "right", fill = NA, na.rm = TRUE)) %>% 
+    #k is the size being averaged, align is where those values are relative to the reference, fill is for the beginning and end of the dataset, where there are no additional numbers to average
+  ungroup()
+ 
+  #makes a data.frame with new cases for each day in the whole state#ensures grouping by state continues in this dataframe
+
+  
+
+covid_state <- case_change_data %>% 
+  filter(state == "Ohio") %>% 
+  summarize(state_new = sum(new_cases))
+  
+  
+
+
+
+```
+
+
+
+2. Using the modified data, make a facet plot of the daily new cases and the 7-day rolling mean. Your plot should use compelling geoms, labels, colors, and themes.
+
+3. The story of raw case counts can be misleading. To understand why, lets explore the cases per capita of each state. To do this, join the state COVID data to the population estimates and calculate the 
+. Additionally, calculate the 7-day rolling mean of the new cases per capita counts. This is a tricky task and will take some thought, time, and modification to existing code (most likely)!
+
+4. Using the per capita data, plot the 7-day rolling averages overlying each other (one plot) with compelling labels, colors, and theme.
+
+5. Briefly describe the influence scaling by population had on the analysis? Does it make some states look better? Some worse? How so?
+
+#Q7: Space & Time
+
+For our final task, we will explore our first **spatial example**! In it we will calculate the Weighted Mean Center of the COVID-19 outbreak in the USA to better understand the movement of the virus through time.
+
+To do this, we need to join the COVID data with location information. I have staged the latitude and longitude of county centers on the website.
+
+```{r, echo = TRUE}
+
+  
+
+
+```
+
+
+
+#### What are the relevant columns?
+
+Please read in the data (readr::read_csv()); and join it to your raw COVID-19 data using the fips attributes using the URL.
+
+The mean center of a set of spatial points is defined as the average X and Y coordinate. A weighted mean center can be found by weighting the coordinates by another variable, in this total cases such that:
+
+For each date, calculate the Weighted Mean 
+ and 
+ using the daily cumulative cases and the weight 
+. In addition, calculate the total cases for each day, as well as the month.
+
+Hint: the month can be extracted from the date column using format(date, "%m")
+
+Plot the weighted mean center (aes(x = LNG, y = LAT)), colored by month, and sized by total cases for each day. These points should be plotted over a map of the USA states which can be added to a ggplot object with:
+
+(feel free to modify fill and colour (must be colour (see documentation)))
+
+In a few sentences, describe the movement of the COVID-19 weighted mean throughout the USA and possible drivers of its movement given your knowledge of the outbreak hot spots.
+
+# Q8: Cases vs. Deaths
+
+As extra credit, extend your analysis in problem three to also compute the weighted mean center of daily COVID deaths.
+
+Make two plots next to each other (using patchwork) showing cases in red and deaths in navy. Once completed describe the differences in the plots and what they mean about the spatial patterns seen with COVID impacts. (see guide on website)
