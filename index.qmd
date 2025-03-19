@@ -433,16 +433,17 @@ covid_state <- case_change_data %>%
   ungroup()
  
   #makes a data.frame with new cases for each day in the whole state#ensures grouping by state continues in this dataframe
-
   
+ggplot(covid_state, aes(x = date), na.rm = TRUE) +
+geom_col(aes(y = new_cases), fill = "pink", col = NA) +#adds bar charts to represent the daily new COVID-19 cases. The height of each bar is determined by the newCases variable. The bars are filled with pink, and col = NA removes any border color from the bars.
+ geom_line(aes(y = roll), col = "darkred", linewidth = 1) + # Overlays a line plot on the bars, representing the 7-day rolling average of new cases. The line is colored dark red and has a width of 1 for better visibility.
+  theme_linedraw() + #applies a clean, simple theme with black axis lines and minimal distractions.
+  facet_wrap(~state, nrow = 2, scales = "free_y") + # creates separate plots for each state using facet wrapping.	The nrow = 2 argument arranges the plots in two rows. The scales = "free_y" setting allows each state's y-axis to be independently scaled, preventing small-case states from being overshadowed by larger-case states 
+ggtitle("Cumulative COVID-19 Cases") + xlab("Date") +
+  ylab("Case Count") + # adds a title and labels for the x and y axes. The title describes the plot, while the x-axis represents the date, and the y-axis represents the number of cases
+   theme (plot.title = element_text(size = 11, hjust = .5, lineheight = 1.2, face = "bold"), axis.text.x = element_text(angle = 45, hjust = 1, size = 7), axis.text.y = element_text(hjust = 1, size = 7))
 
-covid_state <- case_change_data %>% 
-  filter(state == "Ohio") %>% 
-  summarize(state_new = sum(new_cases))
-  
-  
-
-
+# In R, when adding layers or components to a plot, each + should be on the same line as the previous part of the plot, not as a new statement.
 
 ```
 
@@ -465,8 +466,66 @@ To do this, we need to join the COVID data with location information. I have sta
 
 ```{r, echo = TRUE}
 
-  
+meta <- data %>%
+  inner_join(county_centroids, by = "fips") %>%
+  group_by(date) %>%
+  summarise(
+    wmX_c = sum(LON * cases) / sum(cases),
+    wmY_c = sum(LAT * cases) / sum(cases),
+    cases = sum(cases),
+    .groups = 'drop'
+  ) %>%
+  arrange(date) %>%
+  mutate(d = 1:n())
 
+# Create the plot [4-8]
+ggplot(meta) +
+  borders("state", fill = "gray90", colour = "white") +
+  geom_point(aes(x = wmX_c, y = wmY_c, size = cases, color = format(date, "%m"), alpha = 0.25)) +
+  theme_linedraw() +
+  labs(color = "Month", size = "Cases", x = "", y = "", title = "Weighted Center of COVID-19 Cases") +
+  theme(legend.position = "bottom")
+
+
+county_centroids <- read_csv('https://raw.githubusercontent.com/mikejohnson51/csu-ess-330/refs/heads/main/resources/county-centroids.csv')
+
+library(ggplot2)
+
+# Check if 'meta' data exists and has the required columns
+if (!all(c("wmX_c", "wmY_c", "cases", "date") %in% colnames(meta))) {
+  stop("The 'meta' data frame is missing required columns.")
+}
+
+# Create the plot
+usa_case_map <- ggplot(meta) +
+  borders("state", fill = "gray90", color = "white") +
+  geom_point(aes(x = wmX_c, y = wmY_c, size = cases, color = format(date, "%m")), alpha = 0.7) +
+  theme_linedraw() +
+  labs(color = "Month", size = "Cases", x = "", y = "", title = "Weighted Center of COVID-19 Cases") +
+  theme(legend.position = "bottom")
+
+# Verify if the plot object is created correctly
+print(usa_case_map)  # Print the plot to the default device (screen)
+
+# Open the PDF device
+pdf("usa_case_map.pdf", width = 10, height = 7)  # Adjust dimensions as needed
+
+# Explicitly print the plot to the PDF device
+print(usa_case_map)
+
+# Close the PDF device
+dev.off()
+
+
+
+#•  Loads county centroid data, which includes longitude and latitude coordinates for each county.
+#•  Joins this dataset with COVID-19 case data using county FIPS codes to match case data with county locations.
+#•  Groups the data by date and computes the weighted mean center of cases based on county coordinates and reported cases.
+#•  Orders the data chronologically and adds a time index to facilitate time-series visualization.
+#•  Creates a U.S. map as a background for plotting.
+#•  Plots the weighted mean center of COVID-19 cases for each day as a red dot, with larger dots representing higher case counts.
+#•  Uses a minimalistic theme to keep the visualization clean and readable.
+#•  Removes unnecessary legends to avoid clutter.
 
 ```
 
@@ -496,3 +555,116 @@ In a few sentences, describe the movement of the COVID-19 weighted mean througho
 As extra credit, extend your analysis in problem three to also compute the weighted mean center of daily COVID deaths.
 
 Make two plots next to each other (using patchwork) showing cases in red and deaths in navy. Once completed describe the differences in the plots and what they mean about the spatial patterns seen with COVID impacts. (see guide on website)
+
+
+```{r, echo = TRUE}
+
+meta2 <- data %>%
+  inner_join(county_centroids, by = "fips") %>%
+  group_by(date) %>%
+  summarise(
+    wmX_c = sum(LON * deaths) / sum(deaths),
+    wmY_c = sum(LAT * deaths) / sum(deaths),
+    deaths = sum(deaths),
+    .groups = 'drop'
+  ) %>%
+  arrange(date) %>%
+  mutate(d = 1:n())
+
+
+county_centroids <- read_csv('https://raw.githubusercontent.com/mikejohnson51/csu-ess-330/refs/heads/main/resources/county-centroids.csv')
+
+library(ggplot2)
+
+# Check if 'meta' data exists and has the required columns
+if (!all(c("wmX_c", "wmY_c", "deaths", "date") %in% colnames(meta2))) {
+  stop("The 'meta' data frame is missing required columns.")
+}
+
+# Create the plot
+usa_death_map <- ggplot(meta2) +
+  borders("state", fill = "gray90", color = "white") +
+  geom_point(aes(x = wmX_c, y = wmY_c, size = deaths, color = format(date, "%m")), alpha = 0.7) +
+  theme_linedraw() +
+  labs(color = "Month", size = "Deaths", x = "", y = "", title = "Weighted Center of COVID-19 Deaths") +
+  theme(legend.position = "bottom")
+
+# Verify if the plot object is created correctly
+print(usa_death_map)  # Print the plot to the default device (screen)
+
+# Open the PDF device
+pdf("usa_death_map.pdf", width = 10, height = 7)  # Adjust dimensions as needed
+
+# Explicitly print the plot to the PDF device
+print(usa_death_map)
+
+# Close the PDF device
+dev.off()
+
+
+usa_covid_maps <- usa_case_map + usa_death_map
+
+pdf("usa_covid_maps.pdf", width = 11, height = 10)
+
+
+```
+
+
+
+
+```{r echo = TRUE}
+
+# Load necessary libraries
+library(ggplot2)
+library(patchwork)
+
+# Create your first plot
+usa_case_map <- ggplot(meta) +
+  borders("state", fill = "gray90", color = "white") +
+  geom_point(aes(x = wmX_c, y = wmY_c, size = cases, color = format(date, "%m")), alpha = 0.25) +
+  theme_linedraw() +
+  labs(color = "Month", size = "Cases", x = "", y = "", title = "Weighted Center of COVID-19 Cases - Plot 1") +
+  theme(legend.position = "bottom")
+
+usa_death_map <- ggplot(meta2) +
+  borders("state", fill = "gray90", color = "white") +
+  geom_point(aes(x = wmX_c, y = wmY_c, size = deaths, color = format(date, "%m")), alpha = 0.7) +
+  theme_linedraw() +
+  labs(color = "Month", size = "Deaths", x = "", y = "", title = "Weighted Center of COVID-19 Deaths") +
+  theme(legend.position = "bottom")
+
+
+
+meta2 <- data %>%
+  inner_join(county_centroids, by = "fips") %>%
+  group_by(date) %>%
+  summarise(
+    wmX_c = sum(LON * deaths) / sum(deaths),
+    wmY_c = sum(LAT * deaths) / sum(deaths),
+    deaths = sum(deaths),
+    .groups = 'drop'
+  ) %>%
+  arrange(date) %>%
+  mutate(d = 1:n())
+
+
+
+# Create your second plot
+usa_death_map <- ggplot(meta2) +
+  borders("state", fill = "gray90", color = "white") +
+  geom_point(aes(x = wmX_c, y = wmY_c, size = deaths, color = format(date, "%m")), alpha = 0.7) +
+  theme_linedraw() +
+  labs(color = "Month", size = "Deaths", x = "", y = "", title = "Weighted Center of COVID-19 Deaths") +
+  theme(legend.position = "bottom")
+
+# Open the PDF device to save the plots
+pdf("usa_case_maps_patchwork.pdf", width = 5, height = 8)
+
+# Combine the plots vertically using patchwork's | operator
+usa_case_map1 / usa_death_map  # Use '/' to stack plots vertically
+
+# Close the PDF device
+dev.off()
+
+
+```
