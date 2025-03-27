@@ -13,7 +13,7 @@ website:
   title: "Lab 3: Visualizing COVID's Takeover"
   navbar:
    left:
-     - href: lab3.qmd
+     - href: index.qmd
        text: Home
 
  
