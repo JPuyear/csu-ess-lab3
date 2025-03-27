@@ -1,10 +1,20 @@
-project: 
-title: "Lab 3""
-  subtitle: "Visualizing COVID's Takeover"
-  author: "Joshua Puyear"
-  output-dir: docs
-  type: website
-
 format:
   html:
     self-contained: true
+    
+    
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "Lab 3: Visualizing COVID's Takeover"
+  navbar:
+   left:
+     - href: index.qmd
+       text: Home
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
