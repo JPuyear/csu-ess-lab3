@@ -447,8 +447,9 @@ state_case_percap <- covid_pop %>%
 state = first(state)) %>% 
   mutate(percap = sum_cases/pop_estimate) %>% 
   arrange(state, date) %>% 
-  mutate(new_cases = percap - lag(percap))  %>%  # Handle first row
-  mutate(roll = zoo::rollmean(new_cases, k = 7, align = "right", fill = NA, na.rm = TRUE)) %>% 
+  mutate(new_cases_percap = percap - lag(percap)) %>% 
+  mutate(new_cases = sum_cases-lag(sum_cases))%>% 
+  mutate(roll = zoo::rollmean(new_cases_percap), k = 7, align = "right", fill = NA, na.rm = TRUE) %>% 
   ungroup()
 
 
@@ -459,7 +460,15 @@ state = first(state)) %>%
 
 ```{r, echo = TRUE}
 
-
+ggplot(state_case_percap, aes(x = date)) +
+  geom_col(aes(y = new_cases_percap), fill = "pink", col = NA) +  # Corrected placement of `fill` and `col`
+  geom_line(aes(y = roll), col = "darkred", size = 1) +
+  theme_linedraw() +
+  facet_wrap(~state, nrow = 2, scales = "free_y") +  # Corrected `rnow` to `nrow`
+  labs(title = "Cumulative COVID-19 Cases Per Capita", x = "Date", y = "Case Count")
+  
+         
+         
 
 
 
@@ -468,6 +477,9 @@ state = first(state)) %>%
 5. Briefly describe the influence scaling by population had on the analysis? Does it make some states look better? Some worse? How so?
 
 ### Q6 Response
+After scaling the covid case data to a per capita basis, the states looked much more similar, eliminating some of the bias against larger states.
+
+
 
 #Q7: Space & Time
 
@@ -476,27 +488,6 @@ For our final task, we will explore our first **spatial example**! In it we will
 To do this, we need to join the COVID data with location information. I have staged the latitude and longitude of county centers on the website.
 
 ```{r, echo = TRUE}
-
-meta <- data %>%
-  inner_join(county_centroids, by = "fips") %>%
-  group_by(date) %>%
-  summarise(
-    wmX_c = sum(LON * cases) / sum(cases),
-    wmY_c = sum(LAT * cases) / sum(cases),
-    cases = sum(cases),
-    .groups = 'drop'
-  ) %>%
-  arrange(date) %>%
-  mutate(d = 1:n())
-
-# Create the plot [4-8]
-ggplot(meta) +
-  borders("state", fill = "gray90", colour = "white") +
-  geom_point(aes(x = wmX_c, y = wmY_c, size = cases, color = format(date, "%m"), alpha = 0.25)) +
-  theme_linedraw() +
-  labs(color = "Month", size = "Cases", x = "", y = "", title = "Weighted Center of COVID-19 Cases") +
-  theme(legend.position = "bottom")
-
 
 county_centroids <- read_csv('https://raw.githubusercontent.com/mikejohnson51/csu-ess-330/refs/heads/main/resources/county-centroids.csv')
 
@@ -570,9 +561,6 @@ As extra credit, extend your analysis in problem three to also compute the weigh
 Make two plots next to each other (using patchwork) showing cases in red and deaths in navy. Once completed describe the differences in the plots and what they mean about the spatial patterns seen with COVID impacts. (see guide on website)
 
 
-
-
-
 ```{r echo = TRUE}
 
 # Load necessary libraries
@@ -581,42 +569,32 @@ library(patchwork)
 
 # Create your first plot
 usa_case_map <- ggplot(meta) +
-  borders("state", fill = "gray90", color = "white") +
-  geom_point(aes(x = wmX_c, y = wmY_c, size = cases, color = format(date, "%m")), alpha = 0.25) +
+  borders("state", fill = "gray90", colour ="white") +
+  geom_point(aes(x = wmX_c, y = wmY_c, size = cases, color = format(date, "%m")), alpha = 0.7) +
   theme_linedraw() +
-  labs(color = "Month", size = "Cases", x = "", y = "", title = "Weighted Center of COVID-19 Cases - Plot 1") +
+  labs(size = "Cases", x = "", y = "", title = "Weighted Center of COVID-19 Cases", color = "Month") +
   theme(legend.position = "bottom")
 
+# Verify if the plot object is created correctly
+print(usa_case_map)  # Print the plot to the default device (screen)
 
+# Open the PDF device
+pdf("usa_case_map.pdf", width = 10, height = 7)  # Adjust dimensions as needed
 
-meta2 <- data %>%
-  inner_join(county_centroids, by = "fips") %>%
-  group_by(date) %>%
-  summarise(
-    wmX_c = sum(LON * deaths) / sum(deaths),
-    wmY_c = sum(LAT * deaths) / sum(deaths),
-    deaths = sum(deaths),
-    .groups = 'drop'
-  ) %>%
-  arrange(date) %>%
-  mutate(d = 1:n())
+# Explicitly print the plot to the PDF device
+print(usa_case_map)
 
-
-usa_death_map <- ggplot(meta2) +
-  borders("state", fill = "gray90", color = "white") +
-  geom_point(aes(x = wmX_c, y = wmY_c, size = deaths, color = format(date, "%m")), alpha = 0.7) +
-  theme_linedraw() +
-  labs(color = "Month", size = "Deaths", x = "", y = "", title = "Weighted Center of COVID-19 Deaths") +
-  theme(legend.position = "bottom")
+# Close the PDF device
+dev.off()
 
 
 
 # Create your second plot
 usa_death_map <- ggplot(meta2) +
-  borders("state", fill = "gray90", color = "white") +
-  geom_point(aes(x = wmX_c, y = wmY_c, size = deaths, color = format(date, "%m")), alpha = 0.7) +
+  borders("state", fill = "gray90", colour ="white") +
+  geom_point(aes(x = wmX_c, y = wmY_c, size = deaths, color = format(date,"%m")), alpha = 0.7) +
   theme_linedraw() +
-  labs(color = "Month", size = "Deaths", x = "", y = "", title = "Weighted Center of COVID-19 Deaths") +
+  labs(size = "Deaths", x = "", y = "", title = "Weighted Center of COVID-19 Deaths", color = "Month") +
   theme(legend.position = "bottom")
 
 # Open the PDF device to save the plots
