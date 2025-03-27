@@ -7,7 +7,7 @@ format:
     
 project:
   type: website
-  output-dir: docs
+  output-dir: JPuyear.github.io
 
 website:
   title: "Lab 3: Visualizing COVID's Takeover"
