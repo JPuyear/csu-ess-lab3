@@ -55,9 +55,6 @@ class(txt)
 
 my.date <- as.Date(txt)
 class(my.date)
-
-
-
 ```
 
 ```{r, echo = TRUE}
@@ -73,6 +70,8 @@ subsets as you go.
 Start by making a subset that limits (filter) the data to Colorado and add a new column (mutate) with the daily new cases using diff/lag by county (group_by). Do the same for new deaths as well.
 
 ```{r, echo = TRUE}
+library(knitr)
+
 co_covid <- data %>% 
   filter(state == "Colorado") %>% 
   group_by(county) %>% 
@@ -95,14 +94,11 @@ and the second should show the 5 counties with the most NEW cases. Remember to u
 ```{r, echo = TRUE}
 #five counties with the most cumulative cases
 
-most_cumulative_cases_co <- co_covid %>% 
+co_covid %>% 
    filter(date == my.date) %>% 
   select(county, cases) %>%
   slice_max(order_by = cases, n = 5) %>% 
-  flextable()
-
-library(knitr)
-kable(most_cumulative_cases_co, caption = "Five Colorado counties with the most cumulative COVID cases as of February 1st, 2022")
+  kable(caption = "Five Colorado counties with the most cumulative COVID cases as of February 1st, 2022")
 
 ```
 
@@ -111,18 +107,14 @@ kable(most_cumulative_cases_co, caption = "Five Colorado counties with the most 
 ```{r, echo = TRUE}
 #five counties with the most new cases
 
-most_new_cases_co <- co_covid %>% 
+co_covid %>% 
   filter(date == my.date) %>% 
   select(county, new_cases) %>%
-  slice_max(order_by = new_cases, n = 5, na_rm = TRUE) %>%
-  flextable()
-
-kable(most_new_cases_co, caption = "Five Colorado counties with the most new COVID cases on Febrary 1st, 2022")
+  slice_max(order_by = new_cases, n = 5, na_rm = TRUE) %>% kable(caption = "Five Colorado counties with the most new COVID cases on Febrary 1st, 2022")
   
 ```
 
 Your tables should have clear column names and descriptive captions.
-
 
 
 # Q3: Normalizing Data
@@ -153,13 +145,10 @@ pop = read_csv(pop_url)
 pop <- pop |>
   mutate(STATE = as.numeric(STATE), COUNTY = as.numeric(COUNTY))|>
   mutate(fips = paste0(sprintf("%02d",STATE),sprintf("%03d", COUNTY)))
-  
-
 ```
 
 
 1. Given the above URL, and guidelines on string concatenation and formatting, read in the population data and (1) create a five digit FIP variable and only keep columns that contain “NAME” or “2021” (remember the tidyselect option found with ?dplyr::select). Additionally, remove all state level rows (e.g. COUNTY FIP == “000”)
-
 
 1
 ```{r, echo = TRUE}
@@ -168,8 +157,6 @@ library(stringr)
 pop21 <- pop %>%
   select(fips, contains("2021"), contains("NAME")) %>%
 filter(!str_ends(fips, "000"))
-
-
 
 ```
 
@@ -190,14 +177,11 @@ intersect(names(pop21), names(co_covid))
 3 What is the range of populations seen in Colorado counties in 2021:
 ```{r, echo = TRUE}
 COpop21 <- pop21 %>% 
-
-
 filter(STNAME == "Colorado") %>%  mutate(state = STNAME, county = CTYNAME) %>% 
   select(-CTYNAME, -STNAME) %>%
   mutate(county = str_replace(county, " County", ""))
   
 range(COpop21$POPESTIMATE2021)
-
 ```
 3. In Colorado, county populations range from 741 to 737287.
 
@@ -221,14 +205,12 @@ ungroup()
 #### First Table
 ```{r, echo = TRUE}
 
-most_cumulative_percap <- co_covid_pop %>%
+co_covid_pop %>%
   mutate(date_char = as.character(date)) %>% 
 select(percap_cumulative, county, date_char, cases) %>% 
   group_by(date_char) %>%
   arrange(date_char) %>% 
-  filter(date_char == "2021-01-01")  %>% slice_max(order_by = percap_cumulative, n = 5)
-
- most_cumulative_percap %>%
+  filter(date_char == "2021-01-01")  %>% slice_max(order_by = percap_cumulative, n = 5) %>%
   flextable(col_keys = c("percap_cumulative", "cases", "county")) %>%  # 
   width(width = 0.75) %>%
   height(height = 0.25) %>%
@@ -243,15 +225,13 @@ select(percap_cumulative, county, date_char, cases) %>%
 ```
 #### Second Table
 ```{r, echo = TRUE}
-most_new_percap <- co_covid_pop %>%
+co_covid_pop %>%
   mutate(date_char = as.character(date)) %>% 
 select(percap_new_cases, county, date_char, new_cases, cases) %>% 
   group_by(date_char) %>%
   arrange(date_char) %>% 
   filter(date_char == "2021-01-01")  %>% slice_max(order_by = percap_new_cases, n = 5) %>% 
-ungroup()
-
- most_new_percap %>%
+ungroup() %>% 
   flextable(col_keys = c("percap_new_cases", "new_cases", "county")) %>%
   width(width = 0.75) %>%
   height(height = 0.25) %>%
@@ -280,7 +260,7 @@ data <- data %>%
 arrange(county, date)
 
 # finding the new cases nationally
-case_change_data <- data %>%
+data <- data %>%
 arrange(state, county, date) %>%
   group_by(county) %>% 
   mutate(case_lag = lag(cases, n = 1, order_by = county)) %>% 
@@ -288,8 +268,6 @@ arrange(state, county, date) %>%
   mutate(new_cases = cases-case_lag) %>% 
   mutate(new_deaths = deaths - death_lag) %>%
   ungroup()
-
-
 
 #changing population, state, and county column data to overlap with covid data for a join
 pop <- pop %>% 
@@ -300,7 +278,7 @@ mutate(state = STNAME, county = CTYNAME) %>%
   mutate(county = str_replace(county, " County", ""))
 
 #covid-population join
-covid_pop <- left_join(case_change_data, pop_national, by = NULL)
+covid_pop <- left_join(data, pop, by = NULL)
 
 
 #COVID/Population data to only include the last 14 days for 100k people
@@ -403,7 +381,7 @@ In this question, we are going to look at the story of 4 states and the impact s
 
 
 ```{r, echo = TRUE}
-covid_state <- case_change_data %>%
+covid_state <- data %>%
   group_by(date, state) %>% 
   summarize(cases = sum(cases)) %>% #this makes each state have a cumulative case count for each day instead of separating it by county
   filter(state %in% c("New York", "Colorado", "Alabama", "Ohio")) %>% #new cases grouped together by state
@@ -425,7 +403,7 @@ ggplot(covid_state, aes(x = date), na.rm = TRUE) +
 geom_col(aes(y = new_cases), fill = "pink", col = NA) +#adds bar charts to represent the daily new COVID-19 cases. The height of each bar is determined by the newCases variable. The bars are filled with pink, and col = NA removes any border color from the bars.
  geom_line(aes(y = roll), col = "darkred", linewidth = 1) + # Overlays a line plot on the bars, representing the 7-day rolling average of new cases. The line is colored dark red and has a width of 1 for better visibility.
   theme_linedraw() + #applies a clean, simple theme with black axis lines and minimal distractions.
-  facet_wrap(~state, nrow = 2, scales = "free_y") + # creates separate plots for each state using facet wrapping.	The nrow = 2 argument arranges the plots in two rows. The scales = "free_y" setting allows each state's y-axis to be independently scaled, preventing small-case states from being overshadowed by larger-case states 
+  facet_wrap(~state, nrow = 2, scales = "fixed") + # creates separate plots for each state using facet wrapping.	The nrow = 2 argument arranges the plots in two rows. The scales = "free_y" setting allows each state's y-axis to be independently scaled, preventing small-case states from being overshadowed by larger-case states 
 ggtitle("Cumulative COVID-19 Cases") + xlab("Date") +
   ylab("Case Count") + # adds a title and labels for the x and y axes. The title describes the plot, while the x-axis represents the date, and the y-axis represents the number of cases
    theme (plot.title = element_text(size = 11, hjust = .5, lineheight = 1.2, face = "bold"), axis.text.x = element_text(angle = 45, hjust = 1, size = 7), axis.text.y = element_text(hjust = 1, size = 7))
@@ -438,19 +416,25 @@ ggtitle("Cumulative COVID-19 Cases") + xlab("Date") +
 3. The story of raw case counts can be misleading. To understand why, lets explore the cases per capita of each state. To do this, join the state COVID data to the population estimates and calculate the new cases/ total population. Additionally, calculate the 7-day rolling mean of the new cases per capita counts. This is a tricky task and will take some thought, time, and modification to existing code (most likely)!
 
 ```{r, echo = TRUE}
+state_pops <- pop21 %>% 
+  mutate(state = STNAME) %>% 
+  filter(state %in% c("New York", "Colorado", "Alabama", "Ohio")) %>% 
+  group_by(state) %>% 
+  summarize(population = sum(POPESTIMATE2021))
 
-state_case_percap <- covid_pop %>% 
+
+state_case_percap <- data %>% 
   filter(state %in% c("New York", "Colorado", "Alabama", "Ohio")) %>%
   group_by(date, state) %>%
-  select(state, date, county, cases, deaths, POPESTIMATE2021) %>% 
+  select(state, date, county, cases, deaths) %>%
   group_by(state, date) %>% 
-  summarize(sum_cases = sum(cases), pop_estimate = sum(POPESTIMATE2021),
-state = first(state)) %>% 
-  mutate(percap = sum_cases/pop_estimate) %>% 
+  summarize(sum_cases = sum(cases), state = first(state)) %>% 
+  left_join(state_pops) %>% 
+  mutate(percap = sum_cases/population) %>% 
   arrange(state, date) %>% 
   mutate(new_cases_percap = percap - lag(percap)) %>% 
   mutate(new_cases = sum_cases-lag(sum_cases))%>% 
-  mutate(roll = zoo::rollmean(new_cases_percap), k = 7, align = "right", fill = NA, na.rm = TRUE) %>% 
+  mutate(roll = zoo::rollmean(new_cases_percap, k = 7, align = "right", fill = NA, na.rm = TRUE)) %>% 
   ungroup()
 
 
@@ -461,26 +445,21 @@ state = first(state)) %>%
 
 ```{r, echo = TRUE}
 
-ggplot(state_case_percap, aes(x = date)) +
-  geom_col(aes(y = new_cases_percap), fill = "pink", col = NA) +  # Corrected placement of `fill` and `col`
-  geom_line(aes(y = roll), col = "darkred", size = 1) +
+ggplot(state_case_percap, aes(x = date), na.rm = TRUE) +
+geom_col(aes(y = new_cases_percap), fill = "pink", col = NA) +
+ geom_line(aes(y = roll), col = "darkred", linewidth = 1) +
   theme_linedraw() +
-  facet_wrap(~state, nrow = 2, scales = "free_y") +  # Corrected `rnow` to `nrow`
-  labs(title = "Cumulative COVID-19 Cases Per Capita", x = "Date", y = "Case Count")
-  
-         
-         
-
-
+  facet_wrap(~state, nrow = 2, scales = "fixed") +
+ggtitle("Cumulative COVID-19 Cases Per Capita") + xlab("Date") +
+  ylab("Case Count Per Capita") +
+   theme (plot.title = element_text(size = 11, hjust = .5, lineheight = 1.2, face = "bold"), axis.text.x = element_text(angle = 45, hjust = 1, size = 7), axis.text.y = element_text(hjust = 1, size = 7))
 
 ```
 
 5. Briefly describe the influence scaling by population had on the analysis? Does it make some states look better? Some worse? How so?
 
 ### Q6 Response
-After scaling the covid case data to a per capita basis, the states looked much more similar, eliminating some of the bias against larger states.
-
-
+After scaling the covid case data to a per capita basis, the states looked much more similar, eliminating some of the bias against larger states. Alabama's peak looks more prominent, while New York's peak around the same time looks less so.
 
 #Q7: Space & Time
 
@@ -491,6 +470,17 @@ To do this, we need to join the COVID data with location information. I have sta
 ```{r, echo = TRUE}
 
 county_centroids <- read_csv('https://raw.githubusercontent.com/mikejohnson51/csu-ess-330/refs/heads/main/resources/county-centroids.csv')
+
+meta <- county_centroids %>% 
+  inner_join(covid_pop) %>%
+  group_by(date) %>% 
+  summarize(
+    wmX_c = sum(LON*cases / sum(cases)),
+    wmY_c = sum(LAT*cases / sum(cases)),
+  cases = sum(cases)) %>% 
+  arrange(date) %>% 
+  mutate(d = 1:n())
+  
 
 library(ggplot2)
 
@@ -589,6 +579,16 @@ print(usa_case_map)
 dev.off()
 
 
+meta2 <- county_centroids %>% 
+  inner_join(covid_pop) %>%
+  group_by(date) %>% 
+  summarize(
+    wmX_c = sum(LON*deaths / sum(deaths)),
+    wmY_c = sum(LAT*deaths / sum(deaths)),
+    deaths = sum(deaths)) %>% 
+  arrange(date) %>% 
+  mutate(d = 1:n())
+
 
 # Create your second plot
 usa_death_map <- ggplot(meta2) +
@@ -598,16 +598,25 @@ usa_death_map <- ggplot(meta2) +
   labs(size = "Deaths", x = "", y = "", title = "Weighted Center of COVID-19 Deaths", color = "Month") +
   theme(legend.position = "bottom")
 
+print(usa_death_map)
+
 # Open the PDF device to save the plots
 pdf("usa_case_maps_patchwork.pdf", width = 5, height = 8)
 
 # Combine the plots vertically using patchwork's | operator
 usa_case_map / usa_death_map  # Use '/' to stack plots vertically
 
-# Close the PDF device
-dev.off()
+
 
 ```
+```{r}
+library(htmltools)
+tags$iframe(src = "C:/Users/Joshua Puyear/Documents/csu-undergrad/ess-330-joshp-2025/github/ess-330-labs/csu-ess-lab3/usa_case_maps_patchwork.pdf", width = "100%", height = "600px")
+```
+
+
+
+
 
 ### Q8 Response
 

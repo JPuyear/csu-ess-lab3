@@ -1,6 +1,8 @@
 format:
   html:
     self-contained: true
+    theme: cosmo
+    css: styles.css
     
     
 project:
@@ -11,10 +13,7 @@ website:
   title: "Lab 3: Visualizing COVID's Takeover"
   navbar:
    left:
-     - href: index.qmd
+     - href: lab3.qmd
        text: Home
 
-format:
-  html:
-    theme: cosmo
-    css: styles.css
+ 
