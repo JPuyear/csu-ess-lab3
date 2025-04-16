@@ -559,6 +559,7 @@ Make two plots next to each other (using patchwork) showing cases in red and dea
 # Load necessary libraries
 library(ggplot2)
 library(patchwork)
+library(ggpubr)
 
 # Create your first plot
 usa_case_map <- ggplot(meta) +
@@ -572,14 +573,10 @@ usa_case_map <- ggplot(meta) +
 print(usa_case_map)  # Print the plot to the default device (screen)
 
 # Open the PDF device
-pdf("usa_case_map.pdf", width = 10, height = 7)  # Adjust dimensions as needed
+ggsave(filename = "usa_case_map.jpg", plot = last_plot(), path = "C:/Users/Joshua Puyear/Documents/csu-undergrad/ess-330-joshp-2025/github/ess-330-labs/csu-ess-lab3/imgs", width = 5, height = 8) # Adjust dimensions as needed
 
 # Explicitly print the plot to the PDF device
 print(usa_case_map)
-
-# Close the PDF device
-dev.off()
-
 
 meta2 <- county_centroids %>% 
   inner_join(covid_pop) %>%
@@ -590,7 +587,6 @@ meta2 <- county_centroids %>%
     deaths = sum(deaths)) %>% 
   arrange(date) %>% 
   mutate(d = 1:n())
-
 
 # Create your second plot
 usa_death_map <- ggplot(meta2) +
@@ -603,7 +599,7 @@ usa_death_map <- ggplot(meta2) +
 print(usa_death_map)
 
 # Open the PDF device to save the plots
-pdf("usa_case_maps_patchwork.pdf", width = 5, height = 8)
+ggsave(filename = "usa_death_map.jpg", plot = last_plot(), path = "C:/Users/Joshua Puyear/Documents/csu-undergrad/ess-330-joshp-2025/github/ess-330-labs/csu-ess-lab3/imgs", width = 5, height = 8)
 
 # Combine the plots vertically using patchwork's | operator
 usa_case_map / usa_death_map  # Use '/' to stack plots vertically
@@ -612,8 +608,7 @@ usa_case_map / usa_death_map  # Use '/' to stack plots vertically
 
 ```
 ```{r}
-library(htmltools)
-tags$iframe(src = "C:/Users/Joshua Puyear/Documents/csu-undergrad/ess-330-joshp-2025/github/ess-330-labs/csu-ess-lab3/usa_case_maps_patchwork.pdf", width = "100%", height = "600px")
+ggsave(filename = "usa_case_maps_patchwork.jpg", plot = last_plot(), path = "C:/Users/Joshua Puyear/Documents/csu-undergrad/ess-330-joshp-2025/github/ess-330-labs/csu-ess-lab3/imgs", width = 5, height = 8)
 ```
 
 
