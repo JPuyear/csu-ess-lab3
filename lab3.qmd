@@ -1,10 +1,12 @@
 ---
-title: "Lab 3"
-subtitle: Ecosystem Science and Sustainability 330 Lab
-format: html
-editor: visual
-execute: 
-  echo: true
+project:
+  title: "Lab 3- Summarizing Covid Data"
+  format: html
+  output-dir: docs
+  type: website
+format:
+  html:
+   self-contained: true
 ---
 
 # Q1.
